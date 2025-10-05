@@ -1,9 +1,11 @@
 
 lab swap
+    pull r
     pull a
     pull b
     push a
     push b
+    push r
     ret
 
 

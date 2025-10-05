@@ -27,6 +27,7 @@ enum Ir {
 struct Prog {
     insts: Vec<Ir>,
     label: HashMap<String, u32>,
+    entry: u32
 }
 
 struct Mapper {
@@ -54,7 +55,7 @@ fn parse(iden: &str, mapper: &mut Mapper, alloc: bool) -> Val {
 
 
 fn compile(src: &String) -> Prog {
-    let mut prog   = Prog { insts: vec![], label: HashMap::new() };
+    let mut prog   = Prog { insts: vec![], label: HashMap::new(), entry: 0 };
     let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
 
     for raw_line in src.split("\n") {
@@ -90,9 +91,72 @@ fn compile(src: &String) -> Prog {
         };
     }
 
+    let Some(x) = prog.label.get("main") else {
+        eprint!("Entry point 'main' not found.\n");
+        std::process::exit(1);
+    };
+    prog.entry = *x;
 
     prog
 }
+
+type Mem = [u32; 2048];
+
+
+fn eval(val: &Val, mem: &Mem) -> u32 {
+    match *val {
+        Val::Imm(x) => x,
+        Val::Addr(x) => *mem.get(x as usize).unwrap_or(&0)
+    }
+}
+
+
+fn run(prog: Prog) {
+    let mut index: u32 = prog.entry;
+    let mut mem: Mem = [0; 2048];
+    let mut stack: Vec<u32> = vec![];
+
+    loop {
+        let Some(inst) = prog.insts.get(index as usize) else { break; };
+        index += 1;
+
+        match inst {
+            Ir::Push(v)            => stack.push(eval(v, &mem)),
+            Ir::Pull(Val::Addr(x)) => mem[*x as usize] = stack.pop().expect("Stack underflow."),
+            Ir::Pull(Val::Imm(_))  => {
+                eprintln!("Cannot pull into immediate.");
+                std::process::exit(1);
+            },
+            Ir::Return => {
+                index = stack.pop().expect("Stack underflow.");
+            },
+            Ir::Sub(addr) => {
+                stack.push(index);
+                index = *addr;
+            },
+            Ir::Let { tar, a, b, op } => {
+                let ra = eval(a, &mut mem);
+                let rb = eval(b, &mut mem);
+                let Val::Addr(addr) = tar else {
+                    eprintln!("Cannot write to immediate.");
+                    std::process::exit(1);
+                };
+                mem[*addr as usize] = match op {
+                    '+' => ra + rb,
+                    '-' => ra - rb,
+                    _   => {
+                        eprintln!("Operator '{op}' is not valid.");
+                        std::process::exit(1);
+                    },
+                }
+            },
+            Ir::Print(x) => {
+                println!("{}", eval(x, &mem));
+            }
+        }
+    }
+}
+
 
 
 
@@ -101,6 +165,6 @@ fn main() {
     let args: Vec<_> = std::env::args().collect();
     let src = std::fs::read_to_string(&args[1]).unwrap();
     let prog = compile(&src);
+    run(prog);
 
-    dbg!(prog);
 }
