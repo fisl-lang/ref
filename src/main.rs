@@ -25,6 +25,13 @@ enum Ir {
         val: Val,
     },
     Print(Val),
+    Goto(u32),
+    If{
+        a: Val,
+        b: Val,
+        op: char,
+        dest: u32,
+    },
 }
 
 #[derive(Debug)]
@@ -58,6 +65,16 @@ fn parse(iden: &str, mapper: &mut Mapper, alloc: bool) -> Val {
 }
 
 
+fn lookup(name: &str, prog: &Prog) -> u32  {
+    if let Some(addr) = prog.label.get(name) {
+        *addr
+    } else {
+        eprint!("Label '{name}' not defined. \n Note: Labels cannot forward reference. ");
+        std::process::exit(1);
+    }
+}
+
+
 fn compile(src: &String) -> Prog {
     let mut prog   = Prog { insts: vec![], label: HashMap::new(), entry: 0 };
     let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
@@ -73,12 +90,7 @@ fn compile(src: &String) -> Prog {
             ["push", name] => { prog.insts.push( Ir::Push(parse(name, &mut mapper, false))); },
             ["ret"] => { prog.insts.push( Ir::Return ); },
             ["sub", name] => {
-                if let Some(addr) = prog.label.get(*name) {
-                    prog.insts.push( Ir::Sub(*addr) )
-                } else {
-                    eprint!("Label '{name}' not defined. \n Note: Labels cannot forward reference. ");
-                    std::process::exit(1);
-                }
+                prog.insts.push( Ir::Sub(lookup(*name, &prog)) )
             },
             ["let", tar, "=", a, op, b] => {
                 prog.insts.push( Ir::Op { 
@@ -96,6 +108,17 @@ fn compile(src: &String) -> Prog {
             },
             ["print", x] => {
                 prog.insts.push( Ir::Print(parse(x, &mut mapper, false)) );
+            },
+            ["goto", name] => {
+                prog.insts.push( Ir::Goto(lookup(*name, &prog)) )
+            },
+            ["if", a, cmp, b, "then", dest] => {
+                prog.insts.push( Ir::If { 
+                    a: parse(a, &mut mapper, false), 
+                    b: parse(b, &mut mapper, false), 
+                    op: cmp.chars().next().unwrap(), 
+                    dest: lookup(*dest, &prog)
+                })
             },
             x => { dbg!(x); }
         };
@@ -169,6 +192,28 @@ fn run(prog: Prog) {
             },
             Ir::Print(x) => {
                 println!("{}", eval(x, &mem));
+            },
+            Ir::Goto(addr) => {
+                index = *addr
+            },
+            Ir::If { a, b, op, dest } => {
+                let ra = eval(a, &mut mem);
+                let rb = eval(b, &mut mem);
+
+                let branch: bool = match op {
+                    '=' => ra == rb,
+                    '!' => ra != rb,
+                    '<' => ra < rb,
+                    '>' => ra > rb,
+                    _   => {
+                        eprintln!("Comperator '{op}' is not valid.");
+                        std::process::exit(1);
+                    },
+                };
+
+                if branch {
+                    index = *dest;
+                }
             }
         }
     }
