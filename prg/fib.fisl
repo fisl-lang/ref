@@ -1,0 +1,21 @@
+
+
+
+
+
+
+lab main
+    let a = 1
+    let b = 1
+
+lab loop
+    let c = a + b
+    let a = b
+    let b = c
+
+    print a
+
+    sub loop
+
+
+
