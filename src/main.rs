@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 enum Val {
     Imm(u32),
-    Addr(u32)
+    Addr(u32),
 }
 
 
@@ -14,11 +14,15 @@ enum Ir {
     Push(Val),
     Sub(u32),
     Return,
-    Let{ 
+    Op{ 
         tar: Val, 
         a: Val, 
         b: Val,
         op: char,
+    },
+    Let{
+        tar: Val,
+        val: Val,
     },
     Print(Val),
 }
@@ -77,11 +81,17 @@ fn compile(src: &String) -> Prog {
                 }
             },
             ["let", tar, "=", a, op, b] => {
-                prog.insts.push( Ir::Let { 
+                prog.insts.push( Ir::Op { 
                     tar: parse(tar,  &mut mapper, true),
                     a: parse(a, &mut mapper, false), 
                     b: parse(b, &mut mapper, false), 
                     op: op.chars().next().unwrap(), 
+                })
+            },
+            ["let", tar, "=", val] => {
+                prog.insts.push( Ir::Let { 
+                    tar: parse(tar,  &mut mapper, true),
+                    val: parse(val, &mut mapper, false), 
                 })
             },
             ["print", x] => {
@@ -134,7 +144,7 @@ fn run(prog: Prog) {
                 stack.push(index);
                 index = *addr;
             },
-            Ir::Let { tar, a, b, op } => {
+            Ir::Op { tar, a, b, op } => {
                 let ra = eval(a, &mut mem);
                 let rb = eval(b, &mut mem);
                 let Val::Addr(addr) = tar else {
@@ -149,6 +159,13 @@ fn run(prog: Prog) {
                         std::process::exit(1);
                     },
                 }
+            },
+            Ir::Let { tar, val } => {
+                let Val::Addr(addr) = tar else {
+                    eprintln!("Cannot write to immediate.");
+                    std::process::exit(1);
+                };
+                mem[*addr as usize] = eval(val, &mut mem);
             },
             Ir::Print(x) => {
                 println!("{}", eval(x, &mem));
