@@ -1,20 +1,13 @@
 
-lab swap
-    pull r
-    pull a
-    pull b
-    push a
-    push b
-    push r
-    ret
-
 
 lab add3
-	sub swap
+    pull addr
+
 	pull tmp
 	let tmp = tmp + 3
 	push tmp
-	sub swap
+
+    push addr
 	ret
 
 lab main
