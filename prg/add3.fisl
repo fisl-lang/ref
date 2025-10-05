@@ -1,24 +1,25 @@
 
 lab swap
-    pll a
-    pll b
-    psh a
-    psh b
+    pull a
+    pull b
+    push a
+    push b
     ret
 
 
 lab add3
 	sub swap
-	pll tmp
+	pull tmp
 	let tmp = tmp + 3
-	psh tmp
+	push tmp
 	sub swap
 	ret
 
 lab main
-	psh 10
+	push 10
 	sub add3
-	pll tmp
-	num tmp
+	pull tmp
+	print tmp
+
 
 	
