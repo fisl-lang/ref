@@ -72,7 +72,7 @@ fn compile(src: &String) -> Prog {
                 if let Some(addr) = prog.label.get(*name) {
                     prog.insts.push( Ir::Sub(*addr) )
                 } else {
-                    eprint!("Label '{name}' not defined. \n Note: Labels cannot back-reference. ");
+                    eprint!("Label '{name}' not defined. \n Note: Labels cannot forward reference. ");
                     std::process::exit(1);
                 }
             },
