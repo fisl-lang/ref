@@ -102,17 +102,63 @@ fn lookup(name: &str, prog: &Prog) -> Address  {
     }
 }
 
+fn lex(src: &str) -> Vec<&str> {
+    enum State {
+        Seek,
+        Buffer,
+        String,
+        Comment,
+    }
+
+    let mut out: Vec<&str> = vec![];
+    let mut state = State::Seek;
+    let mut start = 0;
+
+    for (index, char) in src.chars().enumerate() {
+        match (&state, char) {
+            (State::Seek, ' ') => (),
+            (State::Seek, '#') => state = State::Comment,
+            (State::Seek, '"') => { 
+                state = State::String;
+                start = index + 1;
+            },
+            (State::Seek,  _ ) => {
+                state = State::Buffer;
+                start = index;
+            },
+
+            (State::Buffer, ' ') | 
+            (State::String, '"') => {
+                state = State::Seek;
+                out.push(&src[start..index]);
+            },
+
+            (State::Buffer,  _ ) => (),
+            (State::String,  _ ) => (),
+            (State::Comment, _ ) => (),
+        }
+    }
+
+    //final emit if elligible
+    match state {
+        State::Buffer => 
+            out.push(&src[start..]),
+        _ => (),
+    }
+    
+    out
+}
+
 
 fn compile(src: &String) -> Prog {
     let mut prog   = Prog::new();
     let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
 
-    for raw_line in src.split("\n") {
-        let line = raw_line.trim();
-        if line.is_empty() { continue; }
+    for line in src.split("\n") {
+        let tokens = lex(line);
+        if tokens.is_empty() { continue; }
 
-        let parts: Vec<&str> = line.split(' ').collect();
-        match parts.as_slice() {
+        match tokens.as_slice() {
             ["use",  name] => {
                 let rel_path = format!("lib/{name}.fisl");
                 let Ok(src) = std::fs::read_to_string(&rel_path) else {
