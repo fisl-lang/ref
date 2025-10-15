@@ -1,0 +1,23 @@
+
+
+
+lab math::mul
+    pull addr
+
+    pull a
+    pull b
+
+    let o = 0
+
+    lab math::mul::loop
+        let o = o + a 
+        let b = b - 1
+    if b > 0 then math::mul::loop
+
+    push o
+
+    push addr
+    ret
+
+
+
