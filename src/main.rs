@@ -74,12 +74,6 @@ impl Prog {
             entry: None
         }    
     }
-    fn merge(self: &mut Self, mut other: Prog) {
-        self.insts.append(&mut other.insts);
-        self.label.extend(other.label);
-        //notice, entry it never overwritten.
-        //it can only come from the root source.
-    }
 }
 
 struct Mapper {
@@ -171,9 +165,7 @@ fn lex(src: &str) -> Vec<&str> {
 }
 
 
-fn compile(src: &String) -> Prog {
-    let mut prog   = Prog::new();
-    let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
+fn compile(src: &String, prog: &mut Prog, mapper: &mut Mapper) {
 
     for line in src.split("\n") {
         let tokens = lex(line);
@@ -182,22 +174,22 @@ fn compile(src: &String) -> Prog {
         match tokens.as_slice() {
             ["use",  name] => {
                 let rel_path = format!("lib/{name}.fisl");
-                let Ok(src) = std::fs::read_to_string(&rel_path) else {
+                let Ok(sub_src) = std::fs::read_to_string(&rel_path) else {
                     error(format!("Module at '{rel_path}' not found."));
                 };
-                prog.merge(compile(&src)); 
+                compile(&sub_src, prog, mapper); 
             },
             ["label", name] => { prog.label.insert(name.to_string(), prog.insts.len() as Address); },
-            ["pull", name] => { prog.insts.push( Ir::Pull(parse(name, &mut mapper, true ))); },
-            ["push", name] => { prog.insts.push( Ir::Push(parse(name, &mut mapper, false))); },
+            ["pull", name] => { prog.insts.push( Ir::Pull(parse(name, mapper, true ))); },
+            ["push", name] => { prog.insts.push( Ir::Push(parse(name, mapper, false))); },
             ["return"] => { prog.insts.push( Ir::Return ); },
             ["call", name] => {
                 prog.insts.push( Ir::Call(lookup(*name, &prog)) )
             },
             ["let", tar, "be", a, op, b] => {
-                let tar = parse_address(tar, &mut mapper, true);
-                let a   = parse(a, &mut mapper, false);
-                let b   = parse(b, &mut mapper, false);
+                let tar = parse_address(tar, mapper, true);
+                let a   = parse(a, mapper, false);
+                let b   = parse(b, mapper, false);
 
                 let kind = match *op {
                     "plus"  => ExprKind::Add,
@@ -208,19 +200,19 @@ fn compile(src: &String) -> Prog {
             },
             ["let", tar, "be", val] => {
                 prog.insts.push( Ir::Let { 
-                    tar: parse_address(tar, &mut mapper, true ),
-                    val: parse        (val, &mut mapper, false), 
+                    tar: parse_address(tar, mapper, true ),
+                    val: parse        (val, mapper, false), 
                 })
             },
             ["print", x] => {
-                prog.insts.push( Ir::Print(parse(x, &mut mapper, false)) );
+                prog.insts.push( Ir::Print(parse(x, mapper, false)) );
             },
             ["goto", name] => {
                 prog.insts.push( Ir::Uncon(lookup(*name, &prog)) )
             },
             ["if", ea, x, eb, "goto", dest] => {
-                let a: Val = parse(ea, &mut mapper, false);
-                let b: Val = parse(eb, &mut mapper, false);
+                let a: Val = parse(ea, mapper, false);
+                let b: Val = parse(eb, mapper, false);
                 let addr: Address = lookup(*dest, &prog);
                 let kind = match *x {
                     "equal"   => CompKind::Equal,
@@ -232,18 +224,18 @@ fn compile(src: &String) -> Prog {
                 prog.insts.push(Ir::Con{ a, b, addr, kind })
             },
             ["write", evar, "into", eaddr] => {
-                let var  = parse(evar,  &mut mapper, false);
-                let addr = parse(eaddr, &mut mapper, false);
+                let var  = parse(evar,  mapper, false);
+                let addr = parse(eaddr, mapper, false);
                 prog.insts.push(Ir::Write { var, addr });
             },
             ["read", evar, "from", eaddr] => {
-                let var  = parse_address(evar,  &mut mapper, true);
-                let addr = parse        (eaddr, &mut mapper, false);
+                let var  = parse_address(evar,  mapper, true);
+                let addr = parse        (eaddr, mapper, false);
                 prog.insts.push(Ir::Read { var, addr });
             },
             ["input", x] => {
                 prog.insts.push(Ir::Input(
-                    parse_address(x, &mut mapper, true)
+                    parse_address(x, mapper, true)
                 ));
             },
             ["output", "newline"] => {
@@ -251,21 +243,21 @@ fn compile(src: &String) -> Prog {
             },
             ["output", x] => {
                 prog.insts.push(Ir::Output(
-                    parse(x, &mut mapper, false)
+                    parse(x, mapper, false)
                 ));
             },
             ["allocate", count, "words", "for", evar] => {
                 let Ok(num) = count.parse::<u32>() else {
                     error("Unable to parse allocation count.".to_string());
                 };
-                let var = parse_address(evar, &mut mapper, true);
+                let var = parse_address(evar, mapper, true);
                 let ptr = mapper.alloc;
                 mapper.alloc += num;
 
                 prog.insts.push(Ir::Let { tar: var, val: Val::Imm(ptr) });
             },
             ["string", string, "into", evar] => {
-                let var = parse_address(evar, &mut mapper, true);
+                let var = parse_address(evar, mapper, true);
                 let ptr = mapper.alloc;
                 let end_index = string.len() as u32;
                 mapper.alloc += 1 + end_index;
@@ -292,7 +284,6 @@ fn compile(src: &String) -> Prog {
     }
 
     prog.entry = prog.label.get("main").cloned();
-    prog
 }
 
 type Mem = [u32; 2048];
@@ -383,7 +374,11 @@ fn main() {
 
     let args: Vec<_> = std::env::args().collect();
     let src = std::fs::read_to_string(&args[1]).unwrap();
-    let prog = compile(&src);
+
+    let mut prog   = Prog::new();
+    let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
+    compile(&src, &mut prog, &mut mapper);
+
     run(prog);
 
 }
