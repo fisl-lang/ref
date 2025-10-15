@@ -4,18 +4,18 @@
 
 
 
-lab main
-    let a = 1
-    let b = 1
+label main
+    let a be 1
+    let b be 1
 
-lab loop
-    let c = a + b
-    let a = b
-    let b = c
+label loop
+    let c be a plus b
+    let a be b
+    let b be c
 
     print a
 
-    sub loop
+    goto loop
 
 
 

@@ -1,18 +1,18 @@
 
 
-lab add3
+label add-three
     pull addr
 
 	pull tmp
-	let tmp = tmp + 3
+	let tmp be tmp plus 3
 	push tmp
 
     push addr
-	ret
+	return
 
-lab main
+label main
 	push 10
-	sub add3
+	call add-three
 	pull tmp
 	print tmp
 

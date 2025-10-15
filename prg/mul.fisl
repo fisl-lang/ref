@@ -1,29 +1,29 @@
 
 
-lab math::mul
+label math-mul
     pull addr
 
     pull a
     pull b
 
-    let o = 0
+    let o be 0
 
-    lab math::mul::loop
-        let o = o + a 
-        let b = b - 1
-    if b > 0 then math::mul::loop
+    label math-mul-loop
+        let o be o plus a 
+        let b be b minus 1
+    if b greater 0 goto math-mul-loop
 
     push o
 
     push addr
-    ret
+    return
 
 
-lab main
+label main
     push 3
     push 5
 
-    sub math::mul
+    call math-mul
 
     pull _
     print _
