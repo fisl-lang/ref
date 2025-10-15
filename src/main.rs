@@ -38,12 +38,33 @@ enum Ir {
 struct Prog {
     insts: Vec<Ir>,
     label: HashMap<String, u32>,
-    entry: u32
+    entry: Option<u32>
+}
+
+impl Prog {
+    fn new() -> Self {
+        Prog {
+            insts: vec![], 
+            label: HashMap::new(), 
+            entry: None
+        }    
+    }
+    fn merge(self: &mut Self, mut other: Prog) {
+        self.insts.append(&mut other.insts);
+        self.label.extend(other.label);
+        //notice, entry it never overwritten.
+        //it can only come from the root source.
+    }
 }
 
 struct Mapper {
     map: HashMap<String, u32>,
     alloc: u32
+}
+
+fn error(msg: String) -> ! {
+    eprintln!("Error: {msg}\n");
+    std::process::exit(1);
 }
 
 fn parse(iden: &str, mapper: &mut Mapper, alloc: bool) -> Val {
@@ -58,8 +79,7 @@ fn parse(iden: &str, mapper: &mut Mapper, alloc: bool) -> Val {
         Val::Addr(res)
     }
     else {
-        eprint!("Identifier '{iden}' cannot be resolved or alloced.");
-        std::process::exit(1);
+        error(format!("Identifier '{iden}' cannot be resolved or alloced."))
     }
 
 }
@@ -69,14 +89,13 @@ fn lookup(name: &str, prog: &Prog) -> u32  {
     if let Some(addr) = prog.label.get(name) {
         *addr
     } else {
-        eprint!("Label '{name}' not defined. \n Note: Labels cannot forward reference. ");
-        std::process::exit(1);
+        error(format!("Label '{name}' not defined. \n Note: Labels cannot forward reference."));
     }
 }
 
 
 fn compile(src: &String) -> Prog {
-    let mut prog   = Prog { insts: vec![], label: HashMap::new(), entry: 0 };
+    let mut prog   = Prog::new();
     let mut mapper = Mapper { map: HashMap::new(), alloc: 0 };
 
     for raw_line in src.split("\n") {
@@ -85,6 +104,13 @@ fn compile(src: &String) -> Prog {
 
         let parts: Vec<&str> = line.split(' ').collect();
         match parts.as_slice() {
+            ["use",  name] => {
+                let rel_path = format!("lib/{name}.fisl");
+                let Ok(src) = std::fs::read_to_string(&rel_path) else {
+                    error(format!("Module at '{rel_path}' not found."));
+                };
+                prog.merge(compile(&src)); 
+            },
             ["lab",  name] => { prog.label.insert(name.to_string(), prog.insts.len() as u32); },
             ["pull", name] => { prog.insts.push( Ir::Pull(parse(name, &mut mapper, true ))); },
             ["push", name] => { prog.insts.push( Ir::Push(parse(name, &mut mapper, false))); },
@@ -124,12 +150,7 @@ fn compile(src: &String) -> Prog {
         };
     }
 
-    let Some(x) = prog.label.get("main") else {
-        eprint!("Entry point 'main' not found.\n");
-        std::process::exit(1);
-    };
-    prog.entry = *x;
-
+    prog.entry = prog.label.get("main").cloned();
     prog
 }
 
@@ -145,7 +166,9 @@ fn eval(val: &Val, mem: &Mem) -> u32 {
 
 
 fn run(prog: Prog) {
-    let mut index: u32 = prog.entry;
+    let Some(mut index) = prog.entry else {
+        error("Entry point 'main' not found.".to_string());
+    };
     let mut mem: Mem = [0; 2048];
     let mut stack: Vec<u32> = vec![];
 
@@ -156,12 +179,11 @@ fn run(prog: Prog) {
         match inst {
             Ir::Push(v)            => stack.push(eval(v, &mem)),
             Ir::Pull(Val::Addr(x)) => mem[*x as usize] = stack.pop().expect("Stack underflow."),
-            Ir::Pull(Val::Imm(_))  => {
-                eprintln!("Cannot pull into immediate.");
-                std::process::exit(1);
-            },
+            Ir::Pull(Val::Imm(_))  => error("Cannot pull into immediate.".to_string()),
             Ir::Return => {
-                index = stack.pop().expect("Stack underflow.");
+                index = stack.pop().unwrap_or_else(
+                    || error("Stack underflow.".to_string())
+                );
             },
             Ir::Sub(addr) => {
                 stack.push(index);
@@ -171,22 +193,17 @@ fn run(prog: Prog) {
                 let ra = eval(a, &mut mem);
                 let rb = eval(b, &mut mem);
                 let Val::Addr(addr) = tar else {
-                    eprintln!("Cannot write to immediate.");
-                    std::process::exit(1);
+                    error("Cannot write to immediate.".to_string())
                 };
                 mem[*addr as usize] = match op {
                     '+' => ra + rb,
                     '-' => ra - rb,
-                    _   => {
-                        eprintln!("Operator '{op}' is not valid.");
-                        std::process::exit(1);
-                    },
+                    _   => error(format!("Operator '{op}' is not valid.")),
                 }
             },
             Ir::Let { tar, val } => {
                 let Val::Addr(addr) = tar else {
-                    eprintln!("Cannot write to immediate.");
-                    std::process::exit(1);
+                    error("Cannot write to immediate.".to_string());
                 };
                 mem[*addr as usize] = eval(val, &mut mem);
             },
@@ -205,10 +222,7 @@ fn run(prog: Prog) {
                     '!' => ra != rb,
                     '<' => ra < rb,
                     '>' => ra > rb,
-                    _   => {
-                        eprintln!("Comperator '{op}' is not valid.");
-                        std::process::exit(1);
-                    },
+                    _   => error(format!("Comperator '{op}' is not valid.")),
                 };
 
                 if branch {
