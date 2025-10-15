@@ -1,3 +1,14 @@
 -pointers
--modules
 -better io
+
+
+-feat
+    -alloc
+    -string
+
+    -write
+    -read
+
+    -charin
+    -charout
+
