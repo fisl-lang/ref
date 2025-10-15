@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Docs</title>
+        <style>
+body {
+    font-family: monospace;
+}
+        </style>
+    </head>
+    <body>
+        <div style="width: 600px; margin: auto">
+            <br>
+            <h1>Fisl Documentation</h1>
+            <h3>Grammar</h3>
+            <pre>
+program   ::= ((" ")* line "\n")*
+line      ::= statement | comment
+comment   ::= "#" .*
+statement ::=
+      "let" var "be" expr
+    | "let" var "be" expr "plus"  expr
+    | "let" var "be" expr "minus" expr
+    | "print" expr
+    | "label" iden
+    | "goto"  iden
+    | "if" expr "equal"   expr "goto" iden 
+    | "if" expr "unequal" expr "goto" iden 
+    | "if" expr "greater" expr "goto" iden 
+    | "if" expr "lesser"  expr "goto" iden 
+    | "push" expr
+    | "pull" expr
+    | "call" iden
+    | "return"
+    | "write" expr "into" expr
+    | "read"  var  "into" expr
+    | "output" "newline"
+    | "output" expr
+    | "input"  var
+    | "allocate" number "words" "for" var
+    | "string"   string "into" var
+
+expr ::= var | number
+string :: = '"' .* '"'
+var ::= iden
+            </pre>
+        </div>
+    </body>
+</html>
+
+
+
