@@ -14,10 +14,13 @@ enum Val {
 
 #[derive(Debug)]
 enum Ir {
+    //macro
     Pull(Val),
     Push(Val),
     Call(Address),
     Return,
+
+    //arith
     Op{
         tar: Address, 
         a: Val, 
@@ -28,14 +31,32 @@ enum Ir {
         tar: Address,
         val: Val,
     },
+
+    //debug
     Print(Val),
+
+    //flow control
     Uncon(Address),
     Con{
         a: Val,
         b: Val,
         addr: Address,
         kind: CompKind
-    }
+    },
+
+    //indirect memory access
+    Write{
+        var:  Val,
+        addr: Val
+    },
+    Read{
+        var: Address,
+        addr: Val
+    },
+
+    //io
+    Output(Val),
+    Input (Address),
 }
 
 #[derive(Debug)]
@@ -210,6 +231,62 @@ fn compile(src: &String) -> Prog {
                 };
                 prog.insts.push(Ir::Con{ a, b, addr, kind })
             },
+            ["write", evar, "into", eaddr] => {
+                let var  = parse(evar,  &mut mapper, false);
+                let addr = parse(eaddr, &mut mapper, false);
+                prog.insts.push(Ir::Write { var, addr });
+            },
+            ["read", evar, "from", eaddr] => {
+                let var  = parse_address(evar,  &mut mapper, true);
+                let addr = parse        (eaddr, &mut mapper, false);
+                prog.insts.push(Ir::Read { var, addr });
+            },
+            ["input", x] => {
+                prog.insts.push(Ir::Input(
+                    parse_address(x, &mut mapper, true)
+                ));
+            },
+            ["output", "newline"] => {
+                prog.insts.push(Ir::Output(Val::Imm('\n' as u32)));
+            },
+            ["output", x] => {
+                prog.insts.push(Ir::Output(
+                    parse(x, &mut mapper, false)
+                ));
+            },
+            ["allocate", count, "words", "for", evar] => {
+                let Ok(num) = count.parse::<u32>() else {
+                    error("Unable to parse allocation count.".to_string());
+                };
+                let var = parse_address(evar, &mut mapper, true);
+                let ptr = mapper.alloc;
+                mapper.alloc += num;
+
+                prog.insts.push(Ir::Let { tar: var, val: Val::Imm(ptr) });
+            },
+            ["string", string, "into", evar] => {
+                let var = parse_address(evar, &mut mapper, true);
+                let ptr = mapper.alloc;
+                let end_index = string.len() as u32;
+                mapper.alloc += 1 + end_index;
+
+                //ptr
+                prog.insts.push(Ir::Let { tar: var, val: Val::Imm(ptr) });
+                
+                //terminator
+                prog.insts.push(Ir::Let { 
+                    tar: (ptr + end_index) as Address, 
+                    val: Val::Imm(ptr) 
+                });
+
+
+                for (i, char) in string.chars().enumerate() {
+                    prog.insts.push(Ir::Let { 
+                        tar: ptr as Address + i,
+                        val: Val::Imm(char as u32),
+                    });
+                }
+            },
             _ => { error(format!("Unable to parse line: {line}")) }
         };
     }
@@ -254,8 +331,8 @@ fn run(prog: Prog) {
                 index = *addr;
             },
             Ir::Op { tar, a, b, kind } => {
-                let ra = eval(a, &mut mem);
-                let rb = eval(b, &mut mem);
+                let ra = eval(a, &mem);
+                let rb = eval(b, &mem);
 
                 mem[*tar] = match kind {
                     ExprKind::Add => ra + rb,
@@ -264,7 +341,7 @@ fn run(prog: Prog) {
 
             },
             Ir::Let { tar, val } => {
-                mem[*tar as usize] = eval(val, &mut mem);
+                mem[*tar as usize] = eval(val, &mem);
             },
             Ir::Print(x) => {
                 println!("{}", eval(x, &mem));
@@ -273,8 +350,8 @@ fn run(prog: Prog) {
                 index = *addr
             },
             Ir::Con { a, b, addr, kind } => {
-                let ra = eval(a, &mut mem);
-                let rb = eval(b, &mut mem);
+                let ra = eval(a, &mem);
+                let rb = eval(b, &mem);
 
                 let branch: bool = match kind {
                     CompKind::Equal   => ra == rb,
@@ -285,6 +362,16 @@ fn run(prog: Prog) {
 
                 if branch { index = *addr; }
             },
+            Ir::Read { var, addr } => {
+                mem[*var as usize] = mem[eval(addr, &mem) as usize];
+            },
+            Ir::Write { var, addr } => {
+                mem[eval(addr, &mem) as usize] = eval(var, &mem);
+            },
+            Ir::Output(x) => {
+                print!("{}", eval(x, &mem) as u8 as char);
+            },
+            Ir::Input(_x) => todo!(),
         }
     }
 }
