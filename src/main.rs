@@ -1,44 +1,48 @@
 use std::collections::HashMap;
 
 
+type Address = usize;
+
 #[derive(Debug)]
 enum Val {
     Imm(u32),
-    Addr(u32),
+    Addr(Address),
 }
 
+#[derive(Debug)] enum ExprKind { Add, Sub }
+#[derive(Debug)] enum CompKind { Equal, Unequal, Greater, Lesser }
 
 #[derive(Debug)]
 enum Ir {
     Pull(Val),
     Push(Val),
-    Sub(u32),
+    Call(Address),
     Return,
-    Op{ 
-        tar: Val, 
+    Op{
+        tar: Address, 
         a: Val, 
         b: Val,
-        op: char,
+        kind: ExprKind,
     },
     Let{
-        tar: Val,
+        tar: Address,
         val: Val,
     },
     Print(Val),
-    Goto(u32),
-    If{
+    Uncon(Address),
+    Con{
         a: Val,
         b: Val,
-        op: char,
-        dest: u32,
-    },
+        addr: Address,
+        kind: CompKind
+    }
 }
 
 #[derive(Debug)]
 struct Prog {
     insts: Vec<Ir>,
-    label: HashMap<String, u32>,
-    entry: Option<u32>
+    label: HashMap<String, Address>,
+    entry: Option<Address>
 }
 
 impl Prog {
@@ -69,23 +73,28 @@ fn error(msg: String) -> ! {
 
 fn parse(iden: &str, mapper: &mut Mapper, alloc: bool) -> Val {
     if let Ok(num) = iden.parse::<u32>() { Val::Imm(num) }
-    else if let Some(addr) = mapper.map.get(iden) {
-        Val::Addr(*addr)
+    else {
+        Val::Addr(parse_address(iden, mapper, alloc))
+    }
+}
+
+fn parse_address(iden: &str, mapper: &mut Mapper, alloc: bool) -> Address {
+    if let Some(addr) = mapper.map.get(iden) {
+        *addr as Address
     }
     else if alloc {
         mapper.map.insert(iden.to_string(), mapper.alloc);
         let res = mapper.alloc;
         mapper.alloc += 1;
-        Val::Addr(res)
+        res as Address
     }
     else {
         error(format!("Identifier '{iden}' cannot be resolved or alloced."))
     }
-
 }
 
 
-fn lookup(name: &str, prog: &Prog) -> u32  {
+fn lookup(name: &str, prog: &Prog) -> Address  {
     if let Some(addr) = prog.label.get(name) {
         *addr
     } else {
@@ -111,42 +120,51 @@ fn compile(src: &String) -> Prog {
                 };
                 prog.merge(compile(&src)); 
             },
-            ["lab",  name] => { prog.label.insert(name.to_string(), prog.insts.len() as u32); },
+            ["label", name] => { prog.label.insert(name.to_string(), prog.insts.len() as Address); },
             ["pull", name] => { prog.insts.push( Ir::Pull(parse(name, &mut mapper, true ))); },
             ["push", name] => { prog.insts.push( Ir::Push(parse(name, &mut mapper, false))); },
-            ["ret"] => { prog.insts.push( Ir::Return ); },
-            ["sub", name] => {
-                prog.insts.push( Ir::Sub(lookup(*name, &prog)) )
+            ["return"] => { prog.insts.push( Ir::Return ); },
+            ["call", name] => {
+                prog.insts.push( Ir::Call(lookup(*name, &prog)) )
             },
-            ["let", tar, "=", a, op, b] => {
-                prog.insts.push( Ir::Op { 
-                    tar: parse(tar,  &mut mapper, true),
-                    a: parse(a, &mut mapper, false), 
-                    b: parse(b, &mut mapper, false), 
-                    op: op.chars().next().unwrap(), 
-                })
+            ["let", tar, "be", a, op, b] => {
+                let tar = parse_address(tar, &mut mapper, true);
+                let a   = parse(a, &mut mapper, false);
+                let b   = parse(b, &mut mapper, false);
+
+                let kind = match *op {
+                    "plus"  => ExprKind::Add,
+                    "minus" => ExprKind::Sub,
+                    _ => error(format!("Unknown operation {op}"))
+                };
+                prog.insts.push(Ir::Op{ tar, a, b, kind });
             },
-            ["let", tar, "=", val] => {
+            ["let", tar, "be", val] => {
                 prog.insts.push( Ir::Let { 
-                    tar: parse(tar,  &mut mapper, true),
-                    val: parse(val, &mut mapper, false), 
+                    tar: parse_address(tar, &mut mapper, true ),
+                    val: parse        (val, &mut mapper, false), 
                 })
             },
             ["print", x] => {
                 prog.insts.push( Ir::Print(parse(x, &mut mapper, false)) );
             },
             ["goto", name] => {
-                prog.insts.push( Ir::Goto(lookup(*name, &prog)) )
+                prog.insts.push( Ir::Uncon(lookup(*name, &prog)) )
             },
-            ["if", a, cmp, b, "then", dest] => {
-                prog.insts.push( Ir::If { 
-                    a: parse(a, &mut mapper, false), 
-                    b: parse(b, &mut mapper, false), 
-                    op: cmp.chars().next().unwrap(), 
-                    dest: lookup(*dest, &prog)
-                })
+            ["if", ea, x, eb, "goto", dest] => {
+                let a: Val = parse(ea, &mut mapper, false);
+                let b: Val = parse(eb, &mut mapper, false);
+                let addr: Address = lookup(*dest, &prog);
+                let kind = match *x {
+                    "equal"   => CompKind::Equal,
+                    "unequal" => CompKind::Unequal,
+                    "greater" => CompKind::Greater,
+                    "lesser"  => CompKind::Lesser,
+                    x         => error(format!("Invalid comperator {x}."))
+                };
+                prog.insts.push(Ir::Con{ a, b, addr, kind })
             },
-            x => { dbg!(x); }
+            _ => { error(format!("Unable to parse line: {line}")) }
         };
     }
 
@@ -173,7 +191,7 @@ fn run(prog: Prog) {
     let mut stack: Vec<u32> = vec![];
 
     loop {
-        let Some(inst) = prog.insts.get(index as usize) else { break; };
+        let Some(inst) = prog.insts.get(index) else { break; };
         index += 1;
 
         match inst {
@@ -183,52 +201,44 @@ fn run(prog: Prog) {
             Ir::Return => {
                 index = stack.pop().unwrap_or_else(
                     || error("Stack underflow.".to_string())
-                );
+                ) as Address;
             },
-            Ir::Sub(addr) => {
-                stack.push(index);
+            Ir::Call(addr) => {
+                stack.push(index as u32);
                 index = *addr;
             },
-            Ir::Op { tar, a, b, op } => {
+            Ir::Op { tar, a, b, kind } => {
                 let ra = eval(a, &mut mem);
                 let rb = eval(b, &mut mem);
-                let Val::Addr(addr) = tar else {
-                    error("Cannot write to immediate.".to_string())
-                };
-                mem[*addr as usize] = match op {
-                    '+' => ra + rb,
-                    '-' => ra - rb,
-                    _   => error(format!("Operator '{op}' is not valid.")),
+
+                mem[*tar] = match kind {
+                    ExprKind::Add => ra + rb,
+                    ExprKind::Sub => ra - rb,
                 }
+
             },
             Ir::Let { tar, val } => {
-                let Val::Addr(addr) = tar else {
-                    error("Cannot write to immediate.".to_string());
-                };
-                mem[*addr as usize] = eval(val, &mut mem);
+                mem[*tar as usize] = eval(val, &mut mem);
             },
             Ir::Print(x) => {
                 println!("{}", eval(x, &mem));
             },
-            Ir::Goto(addr) => {
+            Ir::Uncon(addr) => {
                 index = *addr
             },
-            Ir::If { a, b, op, dest } => {
+            Ir::Con { a, b, addr, kind } => {
                 let ra = eval(a, &mut mem);
                 let rb = eval(b, &mut mem);
 
-                let branch: bool = match op {
-                    '=' => ra == rb,
-                    '!' => ra != rb,
-                    '<' => ra < rb,
-                    '>' => ra > rb,
-                    _   => error(format!("Comperator '{op}' is not valid.")),
+                let branch: bool = match kind {
+                    CompKind::Equal   => ra == rb,
+                    CompKind::Unequal => ra != rb,
+                    CompKind::Greater => ra < rb,
+                    CompKind::Lesser  => ra > rb,
                 };
 
-                if branch {
-                    index = *dest;
-                }
-            }
+                if branch { index = *addr; }
+            },
         }
     }
 }
