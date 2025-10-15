@@ -24,10 +24,8 @@ statement ::=
     | "print" expr
     | "label" iden
     | "goto"  iden
-    | "if" expr "equal"   expr "goto" iden 
-    | "if" expr "unequal" expr "goto" iden 
-    | "if" expr "greater" expr "goto" iden 
-    | "if" expr "lesser"  expr "goto" iden 
+    | "if" compare "goto" iden 
+    | "if" compare "call" iden 
     | "push" expr
     | "pull" expr
     | "call" iden
@@ -39,6 +37,12 @@ statement ::=
     | "input"  var
     | "allocate" number "words" "for" var
     | "string"   string "into" var
+
+compare ::=
+      expr "equal"   expr
+    | expr "unequal" expr
+    | expr "greater" expr
+    | expr "lesser"  expr
 
 expr ::= var | number
 string :: = '"' .* '"'
