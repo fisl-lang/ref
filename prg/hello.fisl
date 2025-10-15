@@ -1,0 +1,15 @@
+
+
+label main
+    string "hello world" into str
+
+    label loop
+        read char from str
+        output char
+        let str be str plus 1
+    if char unequal 0 goto loop
+
+    output newline
+        
+
+
