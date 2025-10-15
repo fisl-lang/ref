@@ -9,6 +9,12 @@ enum Val {
     Addr(Address),
 }
 
+#[derive(Debug)]
+enum Branch {
+    Goto(Address),
+    Call(Address)
+}
+
 #[derive(Debug)] enum ExprKind { Add, Sub }
 #[derive(Debug)] enum CompKind { Equal, Unequal, Greater, Lesser }
 
@@ -36,12 +42,12 @@ enum Ir {
     Print(Val),
 
     //flow control
-    Uncon(Address),
-    Con{
+    Goto(Address),
+    If{
         a: Val,
         b: Val,
-        addr: Address,
-        kind: CompKind
+        kind: CompKind,
+        branch: Branch
     },
 
     //indirect memory access
@@ -208,9 +214,9 @@ fn compile(src: &String, prog: &mut Prog, mapper: &mut Mapper) {
                 prog.insts.push( Ir::Print(parse(x, mapper, false)) );
             },
             ["goto", name] => {
-                prog.insts.push( Ir::Uncon(lookup(*name, &prog)) )
+                prog.insts.push( Ir::Goto(lookup(*name, &prog)) )
             },
-            ["if", ea, x, eb, "goto", dest] => {
+            ["if", ea, x, eb, substat, dest] => {
                 let a: Val = parse(ea, mapper, false);
                 let b: Val = parse(eb, mapper, false);
                 let addr: Address = lookup(*dest, &prog);
@@ -221,7 +227,14 @@ fn compile(src: &String, prog: &mut Prog, mapper: &mut Mapper) {
                     "lesser"  => CompKind::Lesser,
                     x         => error(format!("Invalid comperator {x}."))
                 };
-                prog.insts.push(Ir::Con{ a, b, addr, kind })
+
+                let branch = match *substat {
+                    "goto" => Branch::Goto(addr),
+                    "call" => Branch::Call(addr),
+                    x => error(format!("Invalid branch statement {x}.")),
+                };
+
+                prog.insts.push(Ir::If { a, b, kind, branch })
             },
             ["write", evar, "into", eaddr] => {
                 let var  = parse(evar,  mapper, false);
@@ -337,21 +350,29 @@ fn run(prog: Prog) {
             Ir::Print(x) => {
                 println!("{}", eval(x, &mem));
             },
-            Ir::Uncon(addr) => {
+            Ir::Goto(addr) => {
                 index = *addr
             },
-            Ir::Con { a, b, addr, kind } => {
+            Ir::If { a, b, kind, branch } => {
                 let ra = eval(a, &mem);
                 let rb = eval(b, &mem);
 
-                let branch: bool = match kind {
+                let cond: bool = match kind {
                     CompKind::Equal   => ra == rb,
                     CompKind::Unequal => ra != rb,
                     CompKind::Greater => ra > rb,
                     CompKind::Lesser  => ra < rb,
                 };
 
-                if branch { index = *addr; }
+                if cond {
+                    match branch {
+                        Branch::Goto(addr) => index = *addr,
+                        Branch::Call(addr) => {
+                            stack.push(index as u32);
+                            index = *addr;
+                        }
+                    }
+                }
             },
             Ir::Read { var, addr } => {
                 mem[*var as usize] = mem[eval(addr, &mem) as usize];
