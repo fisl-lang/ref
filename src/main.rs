@@ -233,8 +233,8 @@ fn run(prog: Prog) {
                 let branch: bool = match kind {
                     CompKind::Equal   => ra == rb,
                     CompKind::Unequal => ra != rb,
-                    CompKind::Greater => ra < rb,
-                    CompKind::Lesser  => ra > rb,
+                    CompKind::Greater => ra > rb,
+                    CompKind::Lesser  => ra < rb,
                 };
 
                 if branch { index = *addr; }
