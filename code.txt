@@ -1,0 +1,21 @@
+dual register arch
+- accumulator
+- auxiliary 
+
+
+ldi - load immediate
+lda - load accumulator
+sta - store accumulator
+tfr - transfer (acc to aux)
+add - add (aux to acc)
+sub - subtract (aux from acc)
+prt - (debug) print (acc)
+
+ceq - compare (acc)   equal (aux)
+cue - compare (acc) unequal (aux)
+clt - compare (acc) less    (aux)
+cgt - compare (acc) greater (aux)
+
+cgo -   conditional go
+ugo - unconditional go
+
