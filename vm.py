@@ -59,6 +59,8 @@ while pc < len(prog):
         case 'ldp': acc = mem[mem[attr]]
         case 'stp': mem[mem[attr]] = acc
 
+        case 'out': print(chr(acc), end='')
+
         case x:
             print(f"Invalid instruction: {x}")
             sys.exit(0)
