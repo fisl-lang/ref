@@ -25,9 +25,10 @@ def lex(line):
 
 
 
-out = []
+out = ""
 def emit(opcode, attr=None):
-    out.append((opcode, attr))
+    global out
+    out += f"{opcode} {attr if attr else ''}\n"
 
 labels = {}
 vars = {}
@@ -112,6 +113,8 @@ def compile(path):
 
 
 compile(sys.argv[1])
-
 print(out)
+
+with open('build', 'w') as f:
+    f.write(out)
 
