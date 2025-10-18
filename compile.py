@@ -26,12 +26,14 @@ def lex(line):
 
 
 out = ""
+addr = 0
 def emit(opcode, attr=None):
-    global out
-    out += f"{opcode} {attr if attr else ''}\n"
+    global out, addr
+    out += f"{opcode} {attr if attr is not None else ''}\n"
+    addr += 1
 
 labels = {}
-vars = {}
+var = {}
 alloc = 0
 
 def error(msg):
@@ -41,19 +43,21 @@ def error(msg):
 
 
 def read(x):
+    global var
     if x.isdigit():
         emit('ldi', int(x))
-    elif x in vars:
-        emit('lda', vars[x])
+    elif x in var:
+        emit('lda', var[x])
     else:
         error(f'Unable to read from: {x}')
 
 def write(x):
     global alloc
-    if x not in vars:
-        vars[x] = alloc
+    global var
+    if x not in var:
+        var[x] = alloc
         alloc += 1
-    emit('sta', vars[x])
+    emit('sta', var[x])
 
 
 
@@ -68,7 +72,7 @@ def compile(path):
         print(parts)
 
         match parts:
-            case ['label', name]: labels[name] = len(out)
+            case ['label', name]: labels[name] = addr
             case ['let', tar, 'be', src]:
                 read(src)
                 write(tar)
@@ -114,6 +118,7 @@ def compile(path):
 
 compile(sys.argv[1])
 print(out)
+print(labels)
 
 with open('build', 'w') as f:
     f.write(out)
