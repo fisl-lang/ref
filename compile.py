@@ -1,6 +1,6 @@
 
 import sys
-
+import os
 
 
 
@@ -11,7 +11,7 @@ def lex(line):
     buffer = ''
     string = False
     for char in line: 
-        if char == '#': break
+        if char == '#': return []
         if char == '"': string = not string
 
         if char in (' ', '\n') and not string:
@@ -60,18 +60,24 @@ def write(x):
     emit('sta', var[x])
 
 
+lib = '/data/dev/fisl-lang/lib'
+
 
 def compile(path):
     with open(path, 'r') as f:
         lines = f.readlines()
 
     for line in lines:
-        if not line.strip(): continue
-
         parts = lex(line)
+        if not parts: continue
+
         print(parts)
 
         match parts:
+            case ['use', name]:
+                path = os.path.join(lib, name + ".fisl")
+                compile(path)
+
             case ['label', name]: labels[name] = addr
             case ['let', tar, 'be', src]:
                 read(src)
