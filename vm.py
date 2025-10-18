@@ -47,8 +47,17 @@ while pc < len(prog):
         case 'ucl':
             stack.append(pc)
             pc = attr
+
+        case 'ccl':
+            if acc != 0:
+                stack.append(pc)
+                pc = attr
+
         case 'ret':
             pc = stack.pop()
+
+        case 'ldp': acc = mem[mem[attr]]
+        case 'stp': mem[mem[attr]] = acc
 
         case x:
             print(f"Invalid instruction: {x}")
