@@ -1,4 +1,4 @@
-
+import sys
 
 with open('build') as f:
     src = f.read()
@@ -9,13 +9,13 @@ prog = [
     src.split('\n')
     if x.strip()
 ]
-print(prog)
 pc = 0 
 
 acc = 0
 aux = 0
 
 mem = [0 for _ in range(1000)]
+stack = []
 
 while pc < len(prog):
     inst, *tail = prog[pc]
@@ -40,6 +40,19 @@ while pc < len(prog):
 
         case 'cgo': pc = attr if acc != 0 else pc
         case 'ugo': pc = attr
+
+        case 'pha': stack.append(acc)
+        case 'pla': acc = stack.pop()
+
+        case 'ucl':
+            stack.append(pc)
+            pc = attr
+        case 'ret':
+            pc = stack.pop()
+
+        case x:
+            print(f"Invalid instruction: {x}")
+            sys.exit(0)
 
 
 

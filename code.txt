@@ -19,3 +19,8 @@ cgt - compare (acc) greater (aux)
 cgo -   conditional go
 ugo - unconditional go
 
+pla - pull accumulator (from stack)
+pha - push accumulator (to   stack)
+ret - return (from subroutine)
+ucl - unconditional call (subroutine)
+
