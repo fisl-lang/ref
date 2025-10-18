@@ -23,4 +23,9 @@ pla - pull accumulator (from stack)
 pha - push accumulator (to   stack)
 ret - return (from subroutine)
 ucl - unconditional call (subroutine)
+ccl -   conditional call (subroutine)
 
+ldp - load pointer
+stp - store pointer
+
+out - output
