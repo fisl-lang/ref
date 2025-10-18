@@ -68,7 +68,7 @@ def compile(path):
     with open(path, 'r') as f:
         lines = f.readlines()
 
-    global line_no
+    global line_no, alloc
     for line_index, line in enumerate(lines):
         line_no = line_index + 1
 
@@ -110,13 +110,15 @@ def compile(path):
                 emit('pha')
             case ['return']:
                 emit('ret')
-            case ['call', name]:
+            case [inst, name] if inst in ('call', 'goto'): 
                 if name in labels:
-                    emit('ucl', labels[name])
+                    match inst:
+                        case 'call': emit('ucl', labels[name])
+                        case 'goto': emit('ugo', labels[name])
                 else:
                     error("Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
-            case ['if', a, comp, b, 'goto', name]:
+            case ['if', a, comp, b, inst, name] if inst in ('call', 'goto'):
                 read(b)
                 emit('tfr')
                 read(a)
@@ -128,11 +130,35 @@ def compile(path):
                     case 'greater': emit('cgt')
 
                 if name in labels:
-                    emit('cgo', labels[name])
+                    match inst:
+                        case 'call': emit('ccl', labels[name])
+                        case 'goto': emit('cgo', labels[name])
                 else:
                     error("Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
-                
+            case ['read', tar, 'from', ptr]:
+                if ptr not in var:
+                    error("Can only read from pointer.")
+                emit('ldp', var[ptr])
+                write(tar)
+            case ['write', src, 'into', ptr]:
+                read(src)
+                if ptr not in var:
+                    error("Can only write to pointer.")
+                emit('stp', var[ptr])
+
+
+            case ['allocate', count, 'words', 'for', tar]:
+                if not count.isdigit():
+                    error("Allocation count must be number.")
+
+                ptr = alloc
+                alloc += int(count)
+
+                emit('ldi', ptr)
+                write(tar)
+
+
             
             case _:
                 error(f"Unable to compile: {line}")
