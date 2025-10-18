@@ -158,6 +158,25 @@ def compile(path):
                 emit('ldi', ptr)
                 write(tar)
 
+            case ['string', string, 'into', tar]:
+                ptr = alloc
+                alloc += len(string) + 1
+
+                emit('ldi', ptr)
+                write(tar)
+
+                for i, char in enumerate(string + '\0'):
+                    emit('ldi', ord(char))
+                    emit('sta', ptr + i)
+
+            case ['output', 'newline']:
+                emit('ldi', ord('\n'))
+                emit('out')
+
+            case ['output', char]:
+                read(char)
+                emit('out')
+
 
             
             case _:
