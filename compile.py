@@ -36,8 +36,9 @@ labels = {}
 var = {}
 alloc = 0
 
+line_no = 1
 def error(msg):
-    print(f'Error: {msg}')
+    print(f'Error on line {line_no}: {msg}')
     sys.exit(0)
 
 
@@ -67,7 +68,10 @@ def compile(path):
     with open(path, 'r') as f:
         lines = f.readlines()
 
-    for line in lines:
+    global line_no
+    for line_index, line in enumerate(lines):
+        line_no = line_index + 1
+
         parts = lex(line)
         if not parts: continue
 
@@ -97,6 +101,20 @@ def compile(path):
             case ['print', tar]:
                 read(tar)
                 emit('prt', 0)
+
+            case ['pull', tar]:
+                emit('pla')
+                write(tar)
+            case ['push', tar]:
+                read(tar)
+                emit('pha')
+            case ['return']:
+                emit('ret')
+            case ['call', name]:
+                if name in labels:
+                    emit('ucl', labels[name])
+                else:
+                    error("Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
             case ['if', a, comp, b, 'goto', name]:
                 read(b)
