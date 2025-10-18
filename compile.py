@@ -26,7 +26,7 @@ def lex(line):
 
 
 out = ""
-addr = 0
+addr = 1 #reserve initial entry jump
 def emit(opcode, attr=None):
     global out, addr
     out += f"{opcode} {attr if attr is not None else ''}\n"
@@ -117,9 +117,16 @@ def compile(path):
 
 
 compile(sys.argv[1])
-print(out)
+
+entry = 'main'
+if entry not in labels:
+    error(f"Unable to locate entry point: {entry}")
+
+build = f"ugo {labels[entry]}\n" + out
+
+print(build)
 print(labels)
 
 with open('build', 'w') as f:
-    f.write(out)
+    f.write(build)
 
