@@ -85,7 +85,7 @@ def compile(path):
 
             case ['print', tar]:
                 read(tar)
-                emit('print', 0)
+                emit('prt', 0)
 
             case ['if', a, comp, b, 'goto', name]:
                 read(b)
