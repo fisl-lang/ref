@@ -116,7 +116,7 @@ def compile(path):
                         case 'call': emit('ucl', labels[name])
                         case 'goto': emit('ugo', labels[name])
                 else:
-                    error("Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
+                    error(f"Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
             case ['if', a, comp, b, inst, name] if inst in ('call', 'goto'):
                 read(b)
@@ -134,7 +134,7 @@ def compile(path):
                         case 'call': emit('ccl', labels[name])
                         case 'goto': emit('cgo', labels[name])
                 else:
-                    error("Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
+                    error(f"Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
             case ['read', tar, 'from', ptr]:
                 if ptr not in var:
