@@ -19,6 +19,7 @@ line      ::= statement | comment
 comment   ::= "#" .*
 statement ::=
       "let" var "be" expr
+    | "let" var "beknown"
     | "let" var "be" expr "plus"  expr
     | "let" var "be" expr "minus" expr
     | "print" expr
