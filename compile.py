@@ -1,3 +1,4 @@
+#!/bin/python3
 
 import sys
 import os
@@ -147,11 +148,35 @@ def compile(path):
                     error("Can only read from pointer.")
                 emit('ldp', var[ptr])
                 write(tar)
+
             case ['write', src, 'into', ptr]:
                 read(src)
                 if ptr not in var:
                     error("Can only write to pointer.")
                 emit('stp', var[ptr])
+
+
+            case ['stream', tar, 'from', ptr]:
+                if ptr not in var:
+                    error("Can only read from pointer.")
+                emit('ldp', var[ptr])
+                write(tar)
+                emit('ldi', 1)
+                emit('tfr')
+                emit('lda', var[ptr])
+                emit('add')
+                emit('sta', var[ptr])
+
+            case ['stream', src, 'into', ptr]:
+                read(src)
+                if ptr not in var:
+                    error("Can only stream into pointer.")
+                emit('stp', var[ptr])
+                emit('ldi', 1)
+                emit('tfr')
+                emit('lda', var[ptr])
+                emit('add')
+                emit('sta', var[ptr])
 
 
             case ['allocate', count, 'words', 'for', tar]:
