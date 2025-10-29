@@ -52,12 +52,15 @@ def read(x):
     else:
         error(f'Unable to read from: {x}')
 
-def write(x):
+def ensure(x):
     global alloc
     global var
     if x not in var:
         var[x] = alloc
         alloc += 1
+
+def write(x):
+    ensure(x)
     emit('sta', var[x])
 
 
@@ -97,6 +100,9 @@ def compile(path):
                     case x: error(f"Unknown operation: {x}")
 
                 write(tar)
+
+            case ['let', tar, 'beknown']:
+                ensure(tar)
 
             case ['print', tar]:
                 read(tar)
