@@ -1,8 +1,16 @@
 #!/bin/python3
 
 import sys
+import argparse
+import itertools
 
-with open('build') as f:
+parser = argparse.ArgumentParser(epilog=":3")
+parser.add_argument("path", help='bytecode path file.', default='build', nargs='?')
+parser.add_argument("--core", help='core dump upon exit. dot for stdout.')
+args = parser.parse_args()
+
+
+with open(args.path) as f:
     src = f.read()
 
 prog = [
@@ -16,7 +24,7 @@ pc = 0
 acc = 0
 aux = 0
 
-mem = [0 for _ in range(1000)]
+mem = [0 for _ in range(2048)]
 stack = []
 
 while pc < len(prog):
@@ -66,6 +74,19 @@ while pc < len(prog):
         case x:
             print(f"Invalid instruction: {x}")
             sys.exit(0)
+
+
+if args.core is not None:
+    (
+        sys.stdout 
+        if args.core == '.' 
+        else open(args.core, 'w')
+    ).write("\n".join(
+        f"{hex(addr):<4}: {content}"
+        for addr, content
+        in enumerate(mem)
+    ))
+
 
 
 
