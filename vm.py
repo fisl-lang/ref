@@ -1,3 +1,5 @@
+#!/bin/python3
+
 import sys
 
 with open('build') as f:
