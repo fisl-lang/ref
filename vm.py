@@ -23,6 +23,7 @@ pc = 0
 
 acc = 0
 aux = 0
+imr = 0 #indirect memory register
 
 mem = [0 for _ in range(2048)]
 stack = []
@@ -66,8 +67,9 @@ while pc < len(prog):
         case 'ret':
             pc = stack.pop()
 
-        case 'ldp': acc = mem[mem[attr]]
-        case 'stp': mem[mem[attr]] = acc
+        case 'tmi': imr = acc
+        case 'lmi': acc = mem[imr]
+        case 'smi': mem[imr] = acc
 
         case 'out': print(chr(acc), end='')
 

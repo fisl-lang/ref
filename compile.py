@@ -144,39 +144,33 @@ def compile(path):
                     error(f"Label '{name}' not defined.\nNote: Labels cannot be forward referenced.")
 
             case ['read', tar, 'from', ptr]:
-                if ptr not in var:
-                    error("Can only read from pointer.")
-                emit('ldp', var[ptr])
+                read(ptr)
+                emit('tmi')
+                emit('lmi')
+                write(tar)
+            case ['read', tar, 'from', ptr, 'at', offset]:
+                read(ptr)
+                emit('tfr')
+                read(offset)
+                emit('add')
+                emit('tmi')
+                emit('lmi')
                 write(tar)
 
             case ['write', src, 'into', ptr]:
+                read(ptr)
+                emit('tmi')
                 read(src)
-                if ptr not in var:
-                    error("Can only write to pointer.")
-                emit('stp', var[ptr])
-
-
-            case ['stream', tar, 'from', ptr]:
-                if ptr not in var:
-                    error("Can only read from pointer.")
-                emit('ldp', var[ptr])
-                write(tar)
-                emit('ldi', 1)
+                emit('smi')
+            case ['write', src, 'into', ptr, 'at', offset]:
+                read(ptr)
                 emit('tfr')
-                emit('lda', var[ptr])
+                read(offset)
                 emit('add')
-                emit('sta', var[ptr])
-
-            case ['stream', src, 'into', ptr]:
+                emit('tmi')
                 read(src)
-                if ptr not in var:
-                    error("Can only stream into pointer.")
-                emit('stp', var[ptr])
-                emit('ldi', 1)
-                emit('tfr')
-                emit('lda', var[ptr])
-                emit('add')
-                emit('sta', var[ptr])
+                emit('smi')
+
 
 
             case ['allocate', count, 'words', 'for', tar]:
