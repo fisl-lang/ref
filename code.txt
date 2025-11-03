@@ -25,7 +25,8 @@ ret - return (from subroutine)
 ucl - unconditional call (subroutine)
 ccl -   conditional call (subroutine)
 
-ldp - load pointer
-stp - store pointer
+tmi - transfer (acc to) memory indirection (register)
+lmi - load  memory indirect (accumulator)
+smi - store memory indirect (accumulator)
 
 out - output
