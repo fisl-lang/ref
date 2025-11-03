@@ -35,6 +35,7 @@ def emit(opcode, attr=None):
 
 labels = {}
 var = {}
+consts = {}
 alloc = 0
 
 line_no = 1
@@ -48,6 +49,8 @@ def read(x):
     global var
     if x.isdigit():
         emit('ldi', int(x))
+    elif x in consts:
+        emit('ldi', consts[x])
     elif x in var:
         emit('lda', var[x])
     else:
@@ -72,7 +75,7 @@ def compile(path):
     with open(path, 'r') as f:
         lines = f.readlines()
 
-    global line_no, alloc
+    global line_no, alloc, consts
     for line_index, line in enumerate(lines):
         line_no = line_index + 1
 
@@ -82,11 +85,18 @@ def compile(path):
         print(parts)
 
         match parts:
+            #preprocessed
             case ['use', name]:
                 path = os.path.join(lib, name + ".fisl")
                 compile(path)
 
             case ['label', name]: labels[name] = addr
+            case ['constant', name, 'be', number]:
+                if not number.isdigit():
+                    error(f"Constant should be number, but is {number}")
+
+                consts[name] = int(number)
+
             case ['let', tar, 'be', src]:
                 read(src)
                 write(tar)
