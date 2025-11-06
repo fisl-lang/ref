@@ -30,3 +30,4 @@ lmi - load  memory indirect (accumulator)
 smi - store memory indirect (accumulator)
 
 out - output
+inp - input

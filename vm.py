@@ -72,6 +72,7 @@ while pc < len(prog):
         case 'smi': mem[imr] = acc
 
         case 'out': print(chr(acc), end='')
+        case 'inp': acc = ord(sys.stdin.read(1))
 
         case x:
             print(f"Invalid instruction: {x}")

@@ -212,6 +212,10 @@ def compile(path):
                 read(char)
                 emit('out')
 
+            case ['input', char]:
+                emit('inp')
+                write(char)
+
 
             
             case _:
